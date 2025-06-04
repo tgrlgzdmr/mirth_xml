@@ -1,0 +1,898 @@
+<channel version="4.5.2">
+    <id>95dc1b98-8cf6-4950-a98f-60f62f383298</id>
+    <nextMetaDataId>8</nextMetaDataId>
+    <name>CMS-Mindray Beneview T8-TEST2</name>
+    <description></description>
+    <revision>4</revision>
+    <sourceConnector version="4.5.2">
+        <metaDataId>0</metaDataId>
+        <name>sourceConnector</name>
+        <properties class="com.mirth.connect.connectors.tcp.TcpReceiverProperties" version="4.5.2">
+            <pluginProperties/>
+            <listenerConnectorProperties version="4.5.2">
+                <host>0.0.0.0</host>
+                <port>7056</port>
+            </listenerConnectorProperties>
+            <sourceConnectorProperties version="4.5.2">
+                <responseVariable>Auto-generate (After source transformer)</responseVariable>
+                <respondAfterProcessing>true</respondAfterProcessing>
+                <processBatch>false</processBatch>
+                <firstResponse>true</firstResponse>
+                <processingThreads>100</processingThreads>
+                <resourceIds class="linked-hash-map">
+                    <entry>
+                        <string>Default Resource</string>
+                        <string>[Default Resource]</string>
+                    </entry>
+                </resourceIds>
+                <queueBufferSize>1000</queueBufferSize>
+            </sourceConnectorProperties>
+            <transmissionModeProperties class="com.mirth.connect.plugins.mllpmode.MLLPModeProperties">
+                <pluginPointName>MLLP</pluginPointName>
+                <startOfMessageBytes>0B</startOfMessageBytes>
+                <endOfMessageBytes>1C0D</endOfMessageBytes>
+                <useMLLPv2>false</useMLLPv2>
+                <ackBytes>06</ackBytes>
+                <nackBytes>15</nackBytes>
+                <maxRetries>2</maxRetries>
+            </transmissionModeProperties>
+            <serverMode>true</serverMode>
+            <remoteAddress>10.16.28.111</remoteAddress>
+            <remotePort>5052</remotePort>
+            <overrideLocalBinding>false</overrideLocalBinding>
+            <reconnectInterval>5000</reconnectInterval>
+            <receiveTimeout>0</receiveTimeout>
+            <bufferSize>65536</bufferSize>
+            <maxConnections>100</maxConnections>
+            <keepConnectionOpen>true</keepConnectionOpen>
+            <dataTypeBinary>false</dataTypeBinary>
+            <charsetEncoding>DEFAULT_ENCODING</charsetEncoding>
+            <respondOnNewConnection>0</respondOnNewConnection>
+            <responseAddress></responseAddress>
+            <responsePort></responsePort>
+        </properties>
+        <transformer version="4.5.2">
+            <elements>
+                <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+                    <name>KAFKA-TIMESCALE</name>
+                    <sequenceNumber>0</sequenceNumber>
+                    <enabled>true</enabled>
+                    <script>var ptid=tmp[&apos;ptid&apos;]=GetYatisNo();
+logger.info(ptid);
+var vid=tmp[&apos;vid&apos;]=ptid;
+var did=tmp[&apos;did&apos;]=&apos;1&apos;;
+var sdt=tmp[&apos;did&apos;]=new Date().toISOString();
+var sys =&quot;&quot;;
+var dia=&quot;&quot;;
+var mean=&quot;&quot;;
+var valuez=&apos;&apos;;
+tmp[&apos;vl&apos;]=[];
+for(var i=0;i&lt;msg[&apos;OBX&apos;].length();i++){
+	var obj = {};
+	var vitalKey=msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString();
+	var vitalValue=msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+	var vitalUnit=msg[&apos;OBX&apos;][i][&apos;OBX.6&apos;][&apos;OBX.6.2&apos;].toString();
+	var vitalType=msg[&apos;OBX&apos;][i][&apos;OBX.2&apos;][&apos;OBX.2.1&apos;].toString();
+	//logger.info(&apos;key:&apos;+GetVital(vitalKey)+&apos; value:&apos;+vitalValue);
+	if(vitalValue !== &apos;-&apos; &amp;&amp; vitalValue !== undefined &amp;&amp; vitalValue.trim() !== &apos;&apos;) {
+		var key=GetVital(vitalKey);
+		if(key!=&apos;&apos;){
+			if(key.includes(&quot;IBP&quot;) || key.includes(&quot;NIBP&quot;) || key.includes(&quot;ART&quot;)){
+				switch(key.charAt(key.length - 1)){
+					case &quot;S&quot;:
+					sys=vitalValue;//Deneme					
+					break;//deneme
+					case &quot;D&quot;:
+					dia=vitalValue;
+					break;
+					case &quot;M&quot;:
+					mean=vitalValue;
+					break;
+					}
+					if(sys!=&apos;&apos; &amp;&amp; dia!=&apos;&apos; &amp;&amp; mean!=&apos;&apos;){
+						key=key.slice(0,-1);
+						vitalValue=sys + &apos;/&apos; + dia +&apos;(&apos;+mean+&apos;)&apos;;
+						sys=diy=mean=&quot;&quot;;
+					}
+					else{continue;}
+				}	
+				var value =new ValuezDTO();
+				value.sdt=sdt;
+				value.key=key;
+				value.vitalValue=vitalValue;
+				value.vitalUnit=vitalUnit;
+				value.vitalType=vitalType;
+				value.vid=vid;
+				value.did=did;	
+			var insertAndJson =new InsertAndJsonDTO();
+			insertAndJson=GetValuez(value);
+			 valuez +=insertAndJson.insert;//&apos;(&apos;+&quot;&apos;&quot;+sdt+&quot;&apos;,&apos;&quot; + key+&quot;&apos;,&apos;&quot;+vitalValue+&quot;&apos;,&apos;&quot;+vitalUnit+&quot;&apos;,&apos;&quot;+vid+&quot;&apos;,&apos;&quot;+did+&quot;&apos;),&quot;;
+			tmp[&apos;vl&apos;].push(insertAndJson.json);
+			}
+		}
+}
+if(valuez.length &gt; 0) {
+	valuez = valuez.substr(0, valuez.length - 1);
+}
+channelMap.put(&apos;vid&apos;, vid);
+channelMap.put(&apos;valuez&apos;, valuez);
+channelMap.put(&apos;sendData&apos;, JSON.stringify(tmp));
+channelMap.put(&apos;stringData&apos;, JSON.stringify(tmp).replace(/&quot;/g, &apos;\\&quot;&apos;));
+logger.info(vid)
+logger.info(valuez)</script>
+                </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+                <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+                    <name>Logger</name>
+                    <sequenceNumber>1</sequenceNumber>
+                    <enabled>true</enabled>
+                    <script>logger.info(&apos;senddata: &apos;+$(&apos;sendData&apos;));
+logger.info(&apos;stringData: &apos;+$(&apos;stringData&apos;));</script>
+                </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+            </elements>
+            <inboundTemplate encoding="base64">TVNIfF5+XCZ8TUlORFJBWV9FR0FURVdBWV4wMEEwMzcwMDI3NkI2RTYxXkVVSS02NHxNSU5EUkFZfHx8MjAyNTA1MTUxNDQwMTIuMDAwMCswMzAwfHxPUlVeUjAxXk9SVV9SMDF8MjU0NjU0fFB8Mi42fHx8QUx8TkV8fFVOSUNPREUgVVRGLTh8fHxJSEVfUENEXzAwMV5JSEUgUENEXjEuMy42LjEuNC4xLjE5Mzc2LjEuNi4xLjEuMV5JU08KUElEfHx8MTIzNDVeXl5Ib3NwaXRhbF5QSXx8R++/vU5BWURJTl5ORUNNSV5eXl5eTApQVjF8fEl8R1lCM15eMDZeXl5eXl4wMC0wRi0xNC0wRS0wMy0yRV5NNgpPQlJ8MXwyNTQ2NTReTUlORFJBWV9FR0FURVdBWV4wMEEwMzcwMDI3NkI2RTYxXkVVSS02NHwyNTQ2NTReTUlORFJBWV9FR0FURVdBWV4wMEEwMzcwMDI3NkI2RTYxXkVVSS02NHwxODI3NzcwMDBebW9uaXRvcmluZyBvZiBwYXRpZW50XlNDVHx8fDIwMjUwNTE1MTQ0MDEyLjAwMDArMDMwMApPQlh8MXxOTXwxNTAzNDReTURDX1RFTVBeTURDfDEuMi4yLjE1MDM0NHwzNC44fDI2ODE5Ml5NRENfRElNX0RFR0NeTURDfHx8fHxSfHx8MjAyNTA1MTUxNDQwMTIuMDAwMCswMzAwfHx8fDAwMEYxNDAyOTEwRTAzMkVeQmVuZXZpZXdeMDAwRjE0MDI5MTBFMDMyRV5FVUktNjQKT0JYfDJ8Tk18MTUwNDU2Xk1EQ19QVUxTX09YSU1fU0FUX08yXk1EQ3wxLjMuMS4xNTA0NTZ8MTAwfDI2MjY4OF5NRENfRElNX1BFUkNFTlReTURDfHx8fHxSfHx8MjAyNTA1MTUxNDQwMTIuMDAwMCswMzAwCk9CWHwzfE5NfDE0OTUzMF5NRENfUFVMU19PWElNX1BVTFNfUkFURV5NREN8MS4zLjEuMTQ5NTMwfDY4fDI2NDg2NF5NRENfRElNX0JFQVRfUEVSX01JTl5NREN8fHx8fFJ8fHwyMDI1MDUxNTE0NDAxMi4wMDAwKzAzMDAKT0JYfDR8Tk18MTUwNDg4Xk1EQ19CTERfUEVSRl9JTkRFWF5NREN8MS4zLjEuMTUwNDg4fDIuODJ8MjYyNjg4Xk1EQ19ESU1fUEVSQ0VOVF5NREN8fHx8fFJ8fHwyMDI1MDUxNTE0NDAxMi4wMDAwKzAzMDAKT0JYfDV8Tk18MTUxNTc4Xk1EQ19UVEhPUl9SRVNQX1JBVEVeTURDfDEuNy4xLjE1MTU3OHwyM3wyNjQ5MjheTURDX0RJTV9SRVNQX1BFUl9NSU5eTURDfHx8fHxSfHx8MjAyNTA1MTUxNDQwMTIuMDAwMCswMzAwCk9CWHw2fE5NfDE0ODA2Nl5NRENfRUNHX1ZfUF9DX1JBVEVeTURDfDEuNy4yLjE0ODA2NnwwfDI2NDg2NF5NRENfRElNX0JFQVRfUEVSX01JTl5NREN8fHx8fFJ8fHwyMDI1MDUxNTE0NDAxMi4wMDAwKzAzMDA=</inboundTemplate>
+            <outboundTemplate encoding="base64">ewogICJkaWQiOiAiMTM1MSIsCiAgInB0aWQiOiAiMTIzIiwKICAidmlkIjogIjU1MTE5NDE0MzA0IiwKICAic2R0IjogIjIwMjItMTEtMTBUMTE6MDA6MjEuOTI1WiIsCiAgInZsIjogWwogICAgewogICAgICAicGlkIjogIkluc3RTZXJpYWxObyIsCiAgICAgICJ2IjogIjIiLAogICAgICAiZHQiOiAiMjAyMi0xMS0xMFQxMTowMDoyMS45MjVaIiwKICAgICAgIm1heCI6ICIxMjAiLAogICAgICAibWluIjogIjYwIgogICAgfQogIF0KfQ==</outboundTemplate>
+            <inboundDataType>HL7V2</inboundDataType>
+            <outboundDataType>JSON</outboundDataType>
+            <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+                <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+                    <handleRepetitions>true</handleRepetitions>
+                    <handleSubcomponents>true</handleSubcomponents>
+                    <useStrictParser>false</useStrictParser>
+                    <useStrictValidation>false</useStrictValidation>
+                    <stripNamespaces>false</stripNamespaces>
+                    <segmentDelimiter>\r</segmentDelimiter>
+                    <convertLineBreaks>true</convertLineBreaks>
+                </serializationProperties>
+                <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+                    <useStrictParser>false</useStrictParser>
+                    <useStrictValidation>false</useStrictValidation>
+                    <segmentDelimiter>\r</segmentDelimiter>
+                </deserializationProperties>
+                <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+                    <splitType>MSH_Segment</splitType>
+                    <batchScript></batchScript>
+                </batchProperties>
+                <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+                    <segmentDelimiter>\r</segmentDelimiter>
+                    <successfulACKCode>AA</successfulACKCode>
+                    <successfulACKMessage></successfulACKMessage>
+                    <errorACKCode>AE</errorACKCode>
+                    <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+                    <rejectedACKCode>AR</rejectedACKCode>
+                    <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+                    <msh15ACKAccept>false</msh15ACKAccept>
+                    <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+                </responseGenerationProperties>
+                <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+                    <successfulACKCode>AA,CA</successfulACKCode>
+                    <errorACKCode>AE,CE</errorACKCode>
+                    <rejectedACKCode>AR,CR</rejectedACKCode>
+                    <validateMessageControlId>true</validateMessageControlId>
+                    <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+                    <originalIdMapVariable></originalIdMapVariable>
+                </responseValidationProperties>
+            </inboundProperties>
+            <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                    <splitType>JavaScript</splitType>
+                    <batchScript></batchScript>
+                </batchProperties>
+            </outboundProperties>
+        </transformer>
+        <filter version="4.5.2">
+            <elements>
+                <com.mirth.connect.plugins.rulebuilder.RuleBuilderRule version="4.5.2">
+                    <name>Accept message if &quot;msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString()&quot; does not contain 999999999</name>
+                    <sequenceNumber>0</sequenceNumber>
+                    <enabled>true</enabled>
+                    <field>msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString()</field>
+                    <condition>NOT_CONTAIN</condition>
+                    <values>
+                        <string>999999999</string>
+                    </values>
+                </com.mirth.connect.plugins.rulebuilder.RuleBuilderRule>
+            </elements>
+        </filter>
+        <transportName>TCP Listener</transportName>
+        <mode>SOURCE</mode>
+        <enabled>true</enabled>
+        <waitForPrevious>true</waitForPrevious>
+    </sourceConnector>
+    <destinationConnectors>
+        <connector version="4.5.2">
+            <metaDataId>7</metaDataId>
+            <name>kafka</name>
+            <properties class="com.mirth.connect.connectors.http.HttpDispatcherProperties" version="4.5.2">
+                <pluginProperties/>
+                <destinationConnectorProperties version="4.5.2">
+                    <queueEnabled>false</queueEnabled>
+                    <sendFirst>false</sendFirst>
+                    <retryIntervalMillis>10000</retryIntervalMillis>
+                    <regenerateTemplate>false</regenerateTemplate>
+                    <retryCount>0</retryCount>
+                    <rotate>false</rotate>
+                    <includeFilterTransformer>false</includeFilterTransformer>
+                    <threadCount>1</threadCount>
+                    <threadAssignmentVariable></threadAssignmentVariable>
+                    <validateResponse>false</validateResponse>
+                    <resourceIds class="linked-hash-map">
+                        <entry>
+                            <string>Default Resource</string>
+                            <string>[Default Resource]</string>
+                        </entry>
+                    </resourceIds>
+                    <queueBufferSize>1000</queueBufferSize>
+                    <reattachAttachments>true</reattachAttachments>
+                </destinationConnectorProperties>
+                <host>http://10.16.20.44:28080/api/docker-kafka-server/topic/vitalStream/data</host>
+                <useProxyServer>false</useProxyServer>
+                <proxyAddress></proxyAddress>
+                <proxyPort></proxyPort>
+                <method>post</method>
+                <headers class="linked-hash-map"/>
+                <parameters class="linked-hash-map"/>
+                <useHeadersVariable>false</useHeadersVariable>
+                <headersVariable></headersVariable>
+                <useParametersVariable>false</useParametersVariable>
+                <parametersVariable></parametersVariable>
+                <responseXmlBody>false</responseXmlBody>
+                <responseParseMultipart>true</responseParseMultipart>
+                <responseIncludeMetadata>false</responseIncludeMetadata>
+                <responseBinaryMimeTypes>application/.*(?&lt;!json|xml)$|image/.*|video/.*|audio/.*</responseBinaryMimeTypes>
+                <responseBinaryMimeTypesRegex>true</responseBinaryMimeTypesRegex>
+                <multipart>false</multipart>
+                <useAuthentication>false</useAuthentication>
+                <authenticationType>Basic</authenticationType>
+                <usePreemptiveAuthentication>false</usePreemptiveAuthentication>
+                <username></username>
+                <password></password>
+                <content>{
+    &quot;key&quot;: &quot;${vid}&quot;,
+    &quot;value&quot;: &quot;${stringData}&quot;,
+    &quot;multiMessage&quot;: false,
+    &quot;headers&quot;: [
+        {
+            &quot;key&quot;: &quot;&quot;,
+            &quot;value&quot;: &quot;&quot;
+        }
+    ]
+}</content>
+                <contentType>application/json</contentType>
+                <dataTypeBinary>false</dataTypeBinary>
+                <charset>DEFAULT_ENCODING</charset>
+                <socketTimeout>30000</socketTimeout>
+            </properties>
+            <transformer version="4.5.2">
+                <elements/>
+                <inboundTemplate encoding="base64">TVNIfF5+XCZ8VlNQXjA4MDAxOUZGRkUxM0MxRkReRVVJLTY0fEdFIEhlYWx0aGNhcmV8fHwyMDIzMDkwMTA3NDYwMHx8T1JVXlIwMV5PUlVfUjAxfDAwNDA5NzEzQzFGRHxQfDIuNnx8fE5FfEFMfHxVTklDT0RFIFVURi04fHx8UENEX0RFQ18wMDFeSUhFIFBDRF4xLjMuNi4xLjQuMS4xOTM3Ni4xLjYuMS4xLjFeSVNPDVBJRHx8fDExMTUzNDheXl5QSUReTVJ8fERPR0FOXkFZTlVSXl5eXl5MfHx8DVBWMXx8RXxEWUJeXkRZQi0zDU9CUnwxfDA4MDAxOUZGRkUxM0MxRkQyMDIzMDkwMTA3NDYwMF5WU1BeMDgwMDE5RkZGRTEzQzFGRF5FVUktNjR8MDgwMDE5RkZGRTEzQzFGRDIwMjMwOTAxMDc0NjAwXlZTUF4wODAwMTlGRkZFMTNDMUZEXkVVSS02NHwxODI3NzcwMDBebW9uaXRvcmluZyBvZiBwYXRpZW50XlNDVHx8fDIwMjMwOTAxMDc0NjAwDU9CWHwxfHw2OTk2NV5NRENfREVWX01PTl9QSFlTSU9fTVVMVElfUEFSQU1fTURTXk1EQ3wxLjAuMC4wfHx8fHx8fFgNT0JYfDJ8fDY5ODU0Xk1EQ19ERVZfTUVURVJfUFJFU1NfQkxEX1ZNRF5NREN8MS4xMy4wLjB8fHx8fHx8WA1PQlh8M3x8Njk4NTVeTURDX0RFVl9NRVRFUl9QUkVTU19CTERfQ0hBTl5NREN8MS4xMy4xLjB8fHx8fHx8WA1PQlh8NHxOTXwxNTAwMzNeTURDX1BSRVNTX0JMRF9BUlRfU1lTXk1EQ3wxLjEzLjEuMXwxNDd8MjY2MDE2Xk1EQ19ESU1fTU1IR15NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzFGRF5CNDBfR0UNT0JYfDV8Tk18MTUwMDM0Xk1EQ19QUkVTU19CTERfQVJUX0RJQV5NREN8MS4xMy4xLjJ8NzB8MjY2MDE2Xk1EQ19ESU1fTU1IR15NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzFGRF5CNDBfR0UNT0JYfDZ8Tk18MTUwMDM1Xk1EQ19QUkVTU19CTERfQVJUX01FQU5eTURDfDEuMTMuMS4zfDkzfDI2NjAxNl5NRENfRElNX01NSEdeTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHw3fE5NfDE0OTUyMl5NRENfQkxEX1BVTFNfUkFURV9JTlZeTURDfDEuMTMuMS40fDEwM3wyNjQ4NjReTURDX0RJTV9CRUFUX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHw4fHw2OTc5OF5NRENfREVWX0VDR19WTUReTURDfDEuNS4wLjB8fHx8fHx8WA1PQlh8OXxOTXwxNDc4NDJeTURDX0VDR19IRUFSVF9SQVRFXk1EQ3wxLjUuMS4xfDEwMnwyNjQ4NjReTURDX0RJTV9CRUFUX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxMHxOTXwxNDgwNjZeTURDX0VDR19WX1BfQ19SQVRFXk1EQ3wxLjUuMS4yfDF8MjY0ODY0Xk1EQ19ESU1fQkVBVF9QRVJfTUlOXk1EQ3x8fHx8Unx8fHx8fHwwODAwMTlGRkZFMTNDMUZEXkI0MF9HRQ1PQlh8MTF8Tk18MTMxODQyXk1EQ19FQ0dfQU1QTF9TVF9JSV5NREN8MS41LjEuM3wwLjAzfDI2NjQxOV5NRENfRElNX01JQ1JPX1ZPTFReTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxMnx8Njk2NDJeTURDX0RFVl9BTkFMWV9TQVRfTzJfVk1EXk1EQ3wxLjIyLjAuMHx8fHx8fHxYDU9CWHwxM3xOTXwxNDk1MzBeTURDX1BVTFNfT1hJTV9QVUxTX1JBVEVeTURDfDEuMjIuMS4xfDEwM3wyNjQ4NjReTURDX0RJTV9CRUFUX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxNHxOTXwxNTA0NTZeTURDX1BVTFNfT1hJTV9TQVRfTzJeTURDfDEuMjIuMS4yfDk3fDI2MjY4OF5NRENfRElNX1BFUkNFTlReTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxNXx8Njk2ODJeTURDX0RFVl9BTkFMWV9BV0FZX01VTFRJX1BBUkFNX1ZNRF5NREN8MS4yMC4wLjB8fHx8fHx8WA1PQlh8MTZ8Tk18MTUxNTYyXk1EQ19SRVNQX1JBVEVeTURDfDEuMjAuMS4xfDE3fDI2NDkyOF5NRENfRElNX1JFU1BfUEVSX01JTl5NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzFGRF5CNDBfR0UNT0JYfDE3fHw3MDY2Nl5NRENfREVWX0VDR19SRVNQX1ZNRF5NREN8MS42LjAuMHx8fHx8fHxYDU9CWHwxOHxOTXwxNTE1NjJeTURDX1JFU1BfUkFURV5NREN8MS42LjEuMXwxN3wyNjQ5MjheTURDX0RJTV9SRVNQX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dF</inboundTemplate>
+                <outboundTemplate encoding="base64">ewogICJkaWQiOiAiMTM1MSIsCiAgInB0aWQiOiAiMTIzIiwKICAidmlkIjogIjU1MTE5NDE0MzA0IiwKICAic2R0IjogIjIwMjItMTEtMTBUMTE6MDA6MjEuOTI1WiIsCiAgInZsIjogWwogICAgewogICAgICAicGlkIjogIkluc3RTZXJpYWxObyIsCiAgICAgICJ2IjogIjIiLAogICAgICAiZHQiOiAiMjAyMi0xMS0xMFQxMTowMDoyMS45MjVaIiwKICAgICAgIm1heCI6ICIxMjAiLAogICAgICAibWluIjogIjYwIgogICAgfQogIF0KfQ==</outboundTemplate>
+                <inboundDataType>JSON</inboundDataType>
+                <outboundDataType>JSON</outboundDataType>
+                <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </inboundProperties>
+                <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </outboundProperties>
+            </transformer>
+            <responseTransformer version="4.5.2">
+                <elements/>
+                <inboundDataType>JSON</inboundDataType>
+                <outboundDataType>JSON</outboundDataType>
+                <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </inboundProperties>
+                <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </outboundProperties>
+            </responseTransformer>
+            <filter version="4.5.2">
+                <elements/>
+            </filter>
+            <transportName>HTTP Sender</transportName>
+            <mode>DESTINATION</mode>
+            <enabled>true</enabled>
+            <waitForPrevious>false</waitForPrevious>
+        </connector>
+        <connector version="4.5.2">
+            <metaDataId>5</metaDataId>
+            <name>timescale</name>
+            <properties class="com.mirth.connect.connectors.jdbc.DatabaseDispatcherProperties" version="4.5.2">
+                <pluginProperties/>
+                <destinationConnectorProperties version="4.5.2">
+                    <queueEnabled>false</queueEnabled>
+                    <sendFirst>false</sendFirst>
+                    <retryIntervalMillis>10000</retryIntervalMillis>
+                    <regenerateTemplate>false</regenerateTemplate>
+                    <retryCount>0</retryCount>
+                    <rotate>false</rotate>
+                    <includeFilterTransformer>false</includeFilterTransformer>
+                    <threadCount>1</threadCount>
+                    <threadAssignmentVariable></threadAssignmentVariable>
+                    <validateResponse>false</validateResponse>
+                    <resourceIds class="linked-hash-map">
+                        <entry>
+                            <string>Default Resource</string>
+                            <string>[Default Resource]</string>
+                        </entry>
+                    </resourceIds>
+                    <queueBufferSize>1000</queueBufferSize>
+                    <reattachAttachments>true</reattachAttachments>
+                </destinationConnectorProperties>
+                <driver>org.postgresql.Driver</driver>
+                <url>jdbc:postgresql://10.16.20.45:5432/timescale</url>
+                <username>timescale</username>
+                <password>timescale*1</password>
+                <query>var dbConn;
+
+try {
+	dbConn = DatabaseConnectionFactory.createDatabaseConnection(&apos;org.postgresql.Driver&apos;,&apos;jdbc:postgresql://10.16.20.45:5432/timescale&apos;,&apos;timescale&apos;,&apos;timescale*1&apos;);
+
+	var result = dbConn.executeUpdate(&quot;INSERT INTO cihaz_veri (timestamp, vital, value, unit, vizit_id, cihaz_id) VALUES &quot; + $(&apos;valuez&apos;));
+
+} finally {
+	if (dbConn) { 
+		dbConn.close();
+	}
+}</query>
+                <useScript>true</useScript>
+            </properties>
+            <transformer version="4.5.2">
+                <elements>
+                    <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+                        <name>TIMESCALE TRANSFORMER</name>
+                        <sequenceNumber>0</sequenceNumber>
+                        <enabled>false</enabled>
+                        <script>// TIMESCALE TRANSFORMER
+
+tmp[&apos;ptid&apos;] = msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString();
+tmp[&apos;vid&apos;] = msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString();
+tmp[&apos;did&apos;] = &apos;&apos;;
+//tmp[&apos;sdt&apos;] = &quot;&apos;&quot; + new Date(msg[&apos;OBR&apos;][&apos;OBR.7&apos;][&apos;OBR.7.1&apos;].toString().replace(/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$/,&apos;$4:$5:$6 $2/$3/$1&apos;)).toISOString() + &quot;&apos;&quot;;
+tmp[&apos;sdt&apos;] = new Date().toISOString();
+
+var valuez = &apos;&apos;;
+for(var i=0; i&lt;msg[&apos;OBX&apos;].length(); i++) {
+	if(msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;] !== &apos;-&apos; &amp;&amp; msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;] !== undefined &amp;&amp; msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString().trim() !== &apos;&apos;) {
+		var val = &apos;(&apos;;
+		val += &quot;&apos;&quot; + tmp[&apos;sdt&apos;] + &quot;&apos;, &quot;;
+
+		if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;147842&quot;) {
+			val += &quot;&apos;HR&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150456&quot;) {
+			val += &quot;&apos;SPO2&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150344&quot;) {
+			val += &quot;&apos;TEMP&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;151562&quot;) {
+			val += &quot;&apos;RR&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;151578&quot;) {
+			val += &quot;&apos;RR&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;148066&quot;) {
+			val += &quot;&apos;VPC&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;131901&quot;) {
+			val += &quot;&apos;AMPL_ST_III&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;131842&quot;) {
+			val += &quot;&apos;AMPL_ST_II&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150021&quot;) {
+			val += &quot;&apos;NIBP&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150022&quot;) {
+			val += &quot;&apos;NONINV_DIA&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150023&quot;) {
+			val += &quot;&apos;NONINV_MEAN&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150033&quot;) {
+			val += &quot;&apos;IBP&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150034&quot;) {
+			val += &quot;&apos;DIA&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150035&quot;) {
+			val += &quot;&apos;MEAN&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150037&quot;) {
+			val += &quot;&apos;ART&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150038&quot;) {
+			val += &quot;&apos;DIA&apos;&quot; + &apos;, &apos;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150039&quot;) {
+			val += &quot;&apos;MEAN&apos;&quot; + &apos;, &apos;;
+		} else {
+			val += &quot;&apos;&quot; + msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.2&apos;].toString() + &quot;&apos;, &quot;;
+		}
+
+		/*if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150021&quot; || msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150033&quot;){
+			val += &quot;&apos;&quot; + msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString() +&quot;/&quot;+msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString()+&quot;(&quot;+msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString()+&quot;)&quot; + &quot;&apos;, &quot;;
+		}else {
+			val += &quot;&apos;&quot; + msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString() + &quot;&apos;, &quot;;
+		}*/
+		if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150021&quot;){
+			sys= msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150022&quot;){
+				dia=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			else if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150023&quot;){
+				mean=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150022&quot;){
+				dia=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			else if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150023&quot;){
+				mean=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}		
+			val += &quot;&apos;&quot; +sys+&quot;/&quot;+dia +&quot;(&quot;+mean+&quot;)&quot;+ &quot;&apos;, &quot;;
+		}
+		else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150033&quot;){
+			sys= msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150034&quot;){
+				dia=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			else if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150035&quot;){
+				mean=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150034&quot;){
+				dia=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			else if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150035&quot;){
+				mean=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}	
+			val += &quot;&apos;&quot; +sys+&quot;/&quot;+dia +&quot;(&quot;+mean+&quot;)&quot;+ &quot;&apos;, &quot;;
+		}
+		else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150037&quot;){
+			sys= msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150038&quot;){
+				dia=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			else if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150039&quot;){
+				mean=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150038&quot;){
+				dia=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}
+			else if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150039&quot;){
+				mean=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+			}	
+			val += &quot;&apos;&quot; +sys+&quot;/&quot;+dia +&quot;(&quot;+mean+&quot;)&quot;+ &quot;&apos;, &quot;;
+		}
+		else{
+			val += &quot;&apos;&quot; + msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString() + &quot;&apos;, &quot;;
+		}
+		
+		val += &quot;&apos;&quot; + msg[&apos;OBX&apos;][i][&apos;OBX.6&apos;][&apos;OBX.6.2&apos;].toString() + &quot;&apos;, &quot;;
+		val += &quot;&apos;&quot; + tmp[&apos;vid&apos;] + &quot;&apos;, &quot;;
+
+		if(tmp[&apos;did&apos;].length &gt; 0) {
+			val += tmp[&apos;did&apos;];			
+		} else {
+			val += null;
+		}
+		val += &quot;),&quot;;
+		valuez += val;
+	}
+};
+
+if(valuez.length &gt; 0) {
+	valuez = valuez.substr(0, valuez.length - 1);
+}
+
+channelMap.put(&apos;valuez&apos;, valuez);</script>
+                    </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+                </elements>
+                <inboundTemplate encoding="base64">TVNIfF5+XCZ8VlNQXjA4MDAxOUZGRkUxM0MyNjFeRVVJLTY0fEdFIEhlYWx0aGNhcmV8fHwyMDIzMDkwMTEyMjkwMHx8T1JVXlIwMV5PUlVfUjAxfDAwNDA5NzEzQzI2MXxQfDIuNnx8fE5FfEFMfHxVTklDT0RFIFVURi04fHx8UENEX0RFQ18wMDFeSUhFIFBDRF4xLjMuNi4xLjQuMS4xOTM3Ni4xLjYuMS4xLjFeSVNPDVBJRHx8fDk4MzEwNzY5Xl5eUElEXk1SfHxZVUNFTF5FTElGRV5eXl5eTHx8fA1QVjF8fEV8RFlCXl5EWUIxMA1PQlJ8MXwwODAwMTlGRkZFMTNDMjYxMjAyMzA5MDExMjI5MDBeVlNQXjA4MDAxOUZGRkUxM0MyNjFeRVVJLTY0fDA4MDAxOUZGRkUxM0MyNjEyMDIzMDkwMTEyMjkwMF5WU1BeMDgwMDE5RkZGRTEzQzI2MV5FVUktNjR8MTgyNzc3MDAwXm1vbml0b3Jpbmcgb2YgcGF0aWVudF5TQ1R8fHwyMDIzMDkwMTEyMjkwMA1PQlh8MXx8Njk5NjVeTURDX0RFVl9NT05fUEhZU0lPX01VTFRJX1BBUkFNX01EU15NREN8MS4wLjAuMHx8fHx8fHxYDU9CWHwyfHw2OTc5OF5NRENfREVWX0VDR19WTUReTURDfDEuNS4wLjB8fHx8fHx8WA1PQlh8M3xOTXwxNDc4NDJeTURDX0VDR19IRUFSVF9SQVRFXk1EQ3wxLjUuMS4xfDg1fDI2NDg2NF5NRENfRElNX0JFQVRfUEVSX01JTl5NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzI2MV5CNDBfR0UNT0JYfDR8Tk18MTQ4MDY2Xk1EQ19FQ0dfVl9QX0NfUkFURV5NREN8MS41LjEuMnwwfDI2NDg2NF5NRENfRElNX0JFQVRfUEVSX01JTl5NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzI2MV5CNDBfR0UNT0JYfDV8Tk18MTMxODQyXk1EQ19FQ0dfQU1QTF9TVF9JSV5NREN8MS41LjEuM3wwLjA2fDI2NjQxOV5NRENfRElNX01JQ1JPX1ZPTFReTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MyNjFeQjQwX0dFDU9CWHw2fHw2OTY4Ml5NRENfREVWX0FOQUxZX0FXQVlfTVVMVElfUEFSQU1fVk1EXk1EQ3wxLjIwLjAuMHx8fHx8fHxYDU9CWHw3fE5NfDE1MTU2Ml5NRENfUkVTUF9SQVRFXk1EQ3wxLjIwLjEuMXwyNHwyNjQ5MjheTURDX0RJTV9SRVNQX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MyNjFeQjQwX0dFDU9CWHw4fHw3MDY2Nl5NRENfREVWX0VDR19SRVNQX1ZNRF5NREN8MS42LjAuMHx8fHx8fHxYDU9CWHw5fE5NfDE1MTU2Ml5NRENfUkVTUF9SQVRFXk1EQ3wxLjYuMS4xfDI0fDI2NDkyOF5NRENfRElNX1JFU1BfUEVSX01JTl5NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzI2MV5CNDBfR0U=</inboundTemplate>
+                <outboundTemplate encoding="base64">ewogICJkaWQiOiAiMTM1MSIsCiAgInB0aWQiOiAiMTIzIiwKICAidmlkIjogIjU1MTE5NDE0MzA0IiwKICAic2R0IjogIjIwMjItMTEtMTBUMTE6MDA6MjEuOTI1WiIsCiAgInZsIjogWwogICAgewogICAgICAicGlkIjogIkluc3RTZXJpYWxObyIsCiAgICAgICJ2IjogIjIiLAogICAgICAiZHQiOiAiMjAyMi0xMS0xMFQxMTowMDoyMS45MjVaIiwKICAgICAgIm1heCI6ICIxMjAiLAogICAgICAibWluIjogIjYwIgogICAgfQogIF0KfQ==</outboundTemplate>
+                <inboundDataType>JSON</inboundDataType>
+                <outboundDataType>JSON</outboundDataType>
+                <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </inboundProperties>
+                <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </outboundProperties>
+            </transformer>
+            <responseTransformer version="4.5.2">
+                <elements/>
+                <inboundDataType>HL7V2</inboundDataType>
+                <outboundDataType>HL7V2</outboundDataType>
+                <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+                    <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+                        <handleRepetitions>true</handleRepetitions>
+                        <handleSubcomponents>true</handleSubcomponents>
+                        <useStrictParser>false</useStrictParser>
+                        <useStrictValidation>false</useStrictValidation>
+                        <stripNamespaces>false</stripNamespaces>
+                        <segmentDelimiter>\r</segmentDelimiter>
+                        <convertLineBreaks>true</convertLineBreaks>
+                    </serializationProperties>
+                    <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+                        <useStrictParser>false</useStrictParser>
+                        <useStrictValidation>false</useStrictValidation>
+                        <segmentDelimiter>\r</segmentDelimiter>
+                    </deserializationProperties>
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+                        <splitType>MSH_Segment</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                    <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+                        <segmentDelimiter>\r</segmentDelimiter>
+                        <successfulACKCode>AA</successfulACKCode>
+                        <successfulACKMessage></successfulACKMessage>
+                        <errorACKCode>AE</errorACKCode>
+                        <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+                        <rejectedACKCode>AR</rejectedACKCode>
+                        <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+                        <msh15ACKAccept>false</msh15ACKAccept>
+                        <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+                    </responseGenerationProperties>
+                    <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+                        <successfulACKCode>AA,CA</successfulACKCode>
+                        <errorACKCode>AE,CE</errorACKCode>
+                        <rejectedACKCode>AR,CR</rejectedACKCode>
+                        <validateMessageControlId>true</validateMessageControlId>
+                        <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+                        <originalIdMapVariable></originalIdMapVariable>
+                    </responseValidationProperties>
+                </inboundProperties>
+                <outboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+                    <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+                        <handleRepetitions>true</handleRepetitions>
+                        <handleSubcomponents>true</handleSubcomponents>
+                        <useStrictParser>false</useStrictParser>
+                        <useStrictValidation>false</useStrictValidation>
+                        <stripNamespaces>false</stripNamespaces>
+                        <segmentDelimiter>\r</segmentDelimiter>
+                        <convertLineBreaks>true</convertLineBreaks>
+                    </serializationProperties>
+                    <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+                        <useStrictParser>false</useStrictParser>
+                        <useStrictValidation>false</useStrictValidation>
+                        <segmentDelimiter>\r</segmentDelimiter>
+                    </deserializationProperties>
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+                        <splitType>MSH_Segment</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                    <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+                        <segmentDelimiter>\r</segmentDelimiter>
+                        <successfulACKCode>AA</successfulACKCode>
+                        <successfulACKMessage></successfulACKMessage>
+                        <errorACKCode>AE</errorACKCode>
+                        <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+                        <rejectedACKCode>AR</rejectedACKCode>
+                        <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+                        <msh15ACKAccept>false</msh15ACKAccept>
+                        <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+                    </responseGenerationProperties>
+                    <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+                        <successfulACKCode>AA,CA</successfulACKCode>
+                        <errorACKCode>AE,CE</errorACKCode>
+                        <rejectedACKCode>AR,CR</rejectedACKCode>
+                        <validateMessageControlId>true</validateMessageControlId>
+                        <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+                        <originalIdMapVariable></originalIdMapVariable>
+                    </responseValidationProperties>
+                </outboundProperties>
+            </responseTransformer>
+            <filter version="4.5.2">
+                <elements/>
+            </filter>
+            <transportName>Database Writer</transportName>
+            <mode>DESTINATION</mode>
+            <enabled>false</enabled>
+            <waitForPrevious>true</waitForPrevious>
+        </connector>
+        <connector version="4.5.2">
+            <metaDataId>6</metaDataId>
+            <name>kafka2</name>
+            <properties class="com.mirth.connect.connectors.http.HttpDispatcherProperties" version="4.5.2">
+                <pluginProperties/>
+                <destinationConnectorProperties version="4.5.2">
+                    <queueEnabled>false</queueEnabled>
+                    <sendFirst>false</sendFirst>
+                    <retryIntervalMillis>10000</retryIntervalMillis>
+                    <regenerateTemplate>false</regenerateTemplate>
+                    <retryCount>0</retryCount>
+                    <rotate>false</rotate>
+                    <includeFilterTransformer>false</includeFilterTransformer>
+                    <threadCount>1</threadCount>
+                    <threadAssignmentVariable></threadAssignmentVariable>
+                    <validateResponse>false</validateResponse>
+                    <resourceIds class="linked-hash-map">
+                        <entry>
+                            <string>Default Resource</string>
+                            <string>[Default Resource]</string>
+                        </entry>
+                    </resourceIds>
+                    <queueBufferSize>1000</queueBufferSize>
+                    <reattachAttachments>true</reattachAttachments>
+                </destinationConnectorProperties>
+                <host>${kafkaUrl}</host>
+                <useProxyServer>false</useProxyServer>
+                <proxyAddress></proxyAddress>
+                <proxyPort></proxyPort>
+                <method>post</method>
+                <headers class="linked-hash-map"/>
+                <parameters class="linked-hash-map"/>
+                <useHeadersVariable>false</useHeadersVariable>
+                <headersVariable></headersVariable>
+                <useParametersVariable>false</useParametersVariable>
+                <parametersVariable></parametersVariable>
+                <responseXmlBody>false</responseXmlBody>
+                <responseParseMultipart>true</responseParseMultipart>
+                <responseIncludeMetadata>false</responseIncludeMetadata>
+                <responseBinaryMimeTypes>application/.*(?&lt;!json|xml)$|image/.*|video/.*|audio/.*</responseBinaryMimeTypes>
+                <responseBinaryMimeTypesRegex>true</responseBinaryMimeTypesRegex>
+                <multipart>false</multipart>
+                <useAuthentication>false</useAuthentication>
+                <authenticationType>Basic</authenticationType>
+                <usePreemptiveAuthentication>false</usePreemptiveAuthentication>
+                <username></username>
+                <password></password>
+                <content>{
+    &quot;key&quot;: &quot;${vid}&quot;,
+    &quot;value&quot;: &quot;${stringData}&quot;,
+    &quot;multiMessage&quot;: false,
+    &quot;headers&quot;: [
+        {
+            &quot;key&quot;: &quot;&quot;,
+            &quot;value&quot;: &quot;&quot;
+        }
+    ]
+}</content>
+                <contentType>application/json</contentType>
+                <dataTypeBinary>false</dataTypeBinary>
+                <charset>DEFAULT_ENCODING</charset>
+                <socketTimeout>30000</socketTimeout>
+            </properties>
+            <transformer version="4.5.2">
+                <elements>
+                    <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+                        <name>KAFKA TRANSFORMER</name>
+                        <sequenceNumber>0</sequenceNumber>
+                        <enabled>false</enabled>
+                        <script>//KAFKA TRANSFORMER
+
+tmp[&apos;ptid&apos;] = msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString();
+tmp[&apos;vid&apos;] = msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString();
+//tmp[&apos;sdt&apos;] = msg[&apos;OBR&apos;][&apos;OBR.7&apos;][&apos;OBR.7.1&apos;].toString();
+tmp[&apos;sdt&apos;] = new Date().toISOString();
+
+tmp[&apos;vl&apos;] = [];
+for(var i=0; i&lt;msg[&apos;OBX&apos;].length(); i++) {
+var value = &quot;&quot;;
+	var obj = {};
+	if(msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;] !== &apos;-&apos; &amp;&amp; msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;] !== undefined &amp;&amp; msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString().trim() !== &apos;&apos;) {
+		if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;147842&quot;) {
+			value=&quot;HR&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150456&quot;) {
+			value=&quot;SPO2&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150344&quot;) {
+			value=&quot;TEMP&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;151562&quot;) {
+			value=&quot;RR&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;151578&quot;) {
+			value=&quot;RR&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;148066&quot;) {
+			value=&quot;VPC&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;131901&quot;) {
+			value=&quot;AMPL_ST_III&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;131842&quot;) {
+			value=&quot;AMPL_ST_II&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150021&quot;)  {
+			value=&quot;NIBP&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150022&quot;) {
+			value=&quot;DIA&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150023&quot;) {
+			value=&quot;MEAN&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150033&quot;)  {
+			value=&quot;IBP&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150034&quot;) {
+			value=&quot;DIA&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150035&quot;) {
+			value=&quot;MEAN&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150037&quot;)  {
+			value=&quot;ART&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150038&quot;) {
+			value=&quot;DIA&quot;;
+		} else if(msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString() == &quot;150039&quot;) {
+			value=&quot;MEAN&quot;;
+		} else {
+			value=msg[&apos;OBX&apos;][i][&apos;OBX.3&apos;][&apos;OBX.3.2&apos;].toString()
+		}
+	}
+
+	obj[&apos;pid&apos;] = value;
+	/*if(value==&quot;IBP&quot; || value==&quot;NIBP&quot;){
+		obj[&apos;v&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString() +&quot;/&quot;+msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString()+&quot;(&quot;+msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString()+&quot;)&quot;;
+	}
+	else{
+		obj[&apos;v&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+	}*/
+	if(value==&quot;NIBP&quot;){
+		sys=obj[&apos;v&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150022&quot;){
+			dia=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		else if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150023&quot;){
+			mean=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150022&quot;){
+			dia=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		else if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150023&quot;){
+			mean=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}		
+		obj[&apos;v&apos;]=sys+&quot;/&quot;+dia +&quot;(&quot;+mean+&quot;)&quot;;
+	}
+	else if(value==&quot;IBP&quot;){
+		sys=obj[&apos;v&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150034&quot;){
+			dia=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		else if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150035&quot;){
+			mean=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150034&quot;){
+			dia=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		else if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150035&quot;){
+			mean=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}	
+		obj[&apos;v&apos;]=sys+&quot;/&quot;+dia +&quot;(&quot;+mean+&quot;)&quot;;
+	}
+	else if(value==&quot;ART&quot;){
+		sys=obj[&apos;v&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150038&quot;){
+			dia=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		else if(msg[&apos;OBX&apos;][i+1][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150039&quot;){
+			mean=msg[&apos;OBX&apos;][i+1][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150038&quot;){
+			dia=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}
+		else if(msg[&apos;OBX&apos;][i+2][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;].toString()==&quot;150039&quot;){
+			mean=msg[&apos;OBX&apos;][i+2][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+		}	
+		obj[&apos;v&apos;]=sys+&quot;/&quot;+dia +&quot;(&quot;+mean+&quot;)&quot;;
+	}
+	else{
+		obj[&apos;v&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;].toString();
+	}
+
+	obj[&apos;dt&apos;] = tmp[&apos;sdt&apos;];
+	obj[&apos;type&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.2&apos;][&apos;OBX.2.1&apos;].toString();	
+
+	if(!msg[&apos;OBX&apos;][i][&apos;OBX.6&apos;][&apos;OBX.6.1&apos;].toString()) {
+		obj[&apos;u&apos;] = msg[&apos;OBX&apos;][i][&apos;OBX.6&apos;][&apos;OBX.6.1&apos;].toString();
+	}
+
+	if(obj.hasOwnProperty(&apos;pid&apos;) &amp;&amp; obj[&apos;pid&apos;] !=&quot;&quot; ) {
+		tmp[&apos;vl&apos;].push(obj);
+	}
+}
+
+channelMap.put(&apos;vid&apos;, msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;].toString());
+channelMap.put(&apos;sendData&apos;, JSON.stringify(tmp));
+channelMap.put(&apos;stringData&apos;, JSON.stringify(tmp).replace(/&quot;/g, &apos;\\&quot;&apos;));</script>
+                    </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+                </elements>
+                <inboundTemplate encoding="base64">TVNIfF5+XCZ8VlNQXjA4MDAxOUZGRkUxM0MxRkReRVVJLTY0fEdFIEhlYWx0aGNhcmV8fHwyMDIzMDkwMTA3NDYwMHx8T1JVXlIwMV5PUlVfUjAxfDAwNDA5NzEzQzFGRHxQfDIuNnx8fE5FfEFMfHxVTklDT0RFIFVURi04fHx8UENEX0RFQ18wMDFeSUhFIFBDRF4xLjMuNi4xLjQuMS4xOTM3Ni4xLjYuMS4xLjFeSVNPDVBJRHx8fDExMTUzNDheXl5QSUReTVJ8fERPR0FOXkFZTlVSXl5eXl5MfHx8DVBWMXx8RXxEWUJeXkRZQi0zDU9CUnwxfDA4MDAxOUZGRkUxM0MxRkQyMDIzMDkwMTA3NDYwMF5WU1BeMDgwMDE5RkZGRTEzQzFGRF5FVUktNjR8MDgwMDE5RkZGRTEzQzFGRDIwMjMwOTAxMDc0NjAwXlZTUF4wODAwMTlGRkZFMTNDMUZEXkVVSS02NHwxODI3NzcwMDBebW9uaXRvcmluZyBvZiBwYXRpZW50XlNDVHx8fDIwMjMwOTAxMDc0NjAwDU9CWHwxfHw2OTk2NV5NRENfREVWX01PTl9QSFlTSU9fTVVMVElfUEFSQU1fTURTXk1EQ3wxLjAuMC4wfHx8fHx8fFgNT0JYfDJ8fDY5ODU0Xk1EQ19ERVZfTUVURVJfUFJFU1NfQkxEX1ZNRF5NREN8MS4xMy4wLjB8fHx8fHx8WA1PQlh8M3x8Njk4NTVeTURDX0RFVl9NRVRFUl9QUkVTU19CTERfQ0hBTl5NREN8MS4xMy4xLjB8fHx8fHx8WA1PQlh8NHxOTXwxNTAwMzNeTURDX1BSRVNTX0JMRF9BUlRfU1lTXk1EQ3wxLjEzLjEuMXwxNDd8MjY2MDE2Xk1EQ19ESU1fTU1IR15NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzFGRF5CNDBfR0UNT0JYfDV8Tk18MTUwMDM0Xk1EQ19QUkVTU19CTERfQVJUX0RJQV5NREN8MS4xMy4xLjJ8NzB8MjY2MDE2Xk1EQ19ESU1fTU1IR15NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzFGRF5CNDBfR0UNT0JYfDZ8Tk18MTUwMDM1Xk1EQ19QUkVTU19CTERfQVJUX01FQU5eTURDfDEuMTMuMS4zfDkzfDI2NjAxNl5NRENfRElNX01NSEdeTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHw3fE5NfDE0OTUyMl5NRENfQkxEX1BVTFNfUkFURV9JTlZeTURDfDEuMTMuMS40fDEwM3wyNjQ4NjReTURDX0RJTV9CRUFUX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHw4fHw2OTc5OF5NRENfREVWX0VDR19WTUReTURDfDEuNS4wLjB8fHx8fHx8WA1PQlh8OXxOTXwxNDc4NDJeTURDX0VDR19IRUFSVF9SQVRFXk1EQ3wxLjUuMS4xfDEwMnwyNjQ4NjReTURDX0RJTV9CRUFUX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxMHxOTXwxNDgwNjZeTURDX0VDR19WX1BfQ19SQVRFXk1EQ3wxLjUuMS4yfDF8MjY0ODY0Xk1EQ19ESU1fQkVBVF9QRVJfTUlOXk1EQ3x8fHx8Unx8fHx8fHwwODAwMTlGRkZFMTNDMUZEXkI0MF9HRQ1PQlh8MTF8Tk18MTMxODQyXk1EQ19FQ0dfQU1QTF9TVF9JSV5NREN8MS41LjEuM3wwLjAzfDI2NjQxOV5NRENfRElNX01JQ1JPX1ZPTFReTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxMnx8Njk2NDJeTURDX0RFVl9BTkFMWV9TQVRfTzJfVk1EXk1EQ3wxLjIyLjAuMHx8fHx8fHxYDU9CWHwxM3xOTXwxNDk1MzBeTURDX1BVTFNfT1hJTV9QVUxTX1JBVEVeTURDfDEuMjIuMS4xfDEwM3wyNjQ4NjReTURDX0RJTV9CRUFUX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxNHxOTXwxNTA0NTZeTURDX1BVTFNfT1hJTV9TQVRfTzJeTURDfDEuMjIuMS4yfDk3fDI2MjY4OF5NRENfRElNX1BFUkNFTlReTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dFDU9CWHwxNXx8Njk2ODJeTURDX0RFVl9BTkFMWV9BV0FZX01VTFRJX1BBUkFNX1ZNRF5NREN8MS4yMC4wLjB8fHx8fHx8WA1PQlh8MTZ8Tk18MTUxNTYyXk1EQ19SRVNQX1JBVEVeTURDfDEuMjAuMS4xfDE3fDI2NDkyOF5NRENfRElNX1JFU1BfUEVSX01JTl5NREN8fHx8fFJ8fHx8fHx8MDgwMDE5RkZGRTEzQzFGRF5CNDBfR0UNT0JYfDE3fHw3MDY2Nl5NRENfREVWX0VDR19SRVNQX1ZNRF5NREN8MS42LjAuMHx8fHx8fHxYDU9CWHwxOHxOTXwxNTE1NjJeTURDX1JFU1BfUkFURV5NREN8MS42LjEuMXwxN3wyNjQ5MjheTURDX0RJTV9SRVNQX1BFUl9NSU5eTURDfHx8fHxSfHx8fHx8fDA4MDAxOUZGRkUxM0MxRkReQjQwX0dF</inboundTemplate>
+                <outboundTemplate encoding="base64">ewogICJkaWQiOiAiMTM1MSIsCiAgInB0aWQiOiAiMTIzIiwKICAidmlkIjogIjU1MTE5NDE0MzA0IiwKICAic2R0IjogIjIwMjItMTEtMTBUMTE6MDA6MjEuOTI1WiIsCiAgInZsIjogWwogICAgewogICAgICAicGlkIjogIkluc3RTZXJpYWxObyIsCiAgICAgICJ2IjogIjIiLAogICAgICAiZHQiOiAiMjAyMi0xMS0xMFQxMTowMDoyMS45MjVaIiwKICAgICAgIm1heCI6ICIxMjAiLAogICAgICAibWluIjogIjYwIgogICAgfQogIF0KfQ==</outboundTemplate>
+                <inboundDataType>JSON</inboundDataType>
+                <outboundDataType>JSON</outboundDataType>
+                <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </inboundProperties>
+                <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </outboundProperties>
+            </transformer>
+            <responseTransformer version="4.5.2">
+                <elements/>
+                <inboundDataType>JSON</inboundDataType>
+                <outboundDataType>JSON</outboundDataType>
+                <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </inboundProperties>
+                <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+                    <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+                        <splitType>JavaScript</splitType>
+                        <batchScript></batchScript>
+                    </batchProperties>
+                </outboundProperties>
+            </responseTransformer>
+            <filter version="4.5.2">
+                <elements/>
+            </filter>
+            <transportName>HTTP Sender</transportName>
+            <mode>DESTINATION</mode>
+            <enabled>true</enabled>
+            <waitForPrevious>false</waitForPrevious>
+        </connector>
+    </destinationConnectors>
+    <preprocessingScript>// Modify the message variable below to pre process data
+return message;</preprocessingScript>
+    <postprocessingScript>// This script executes once after a message has been processed
+// Responses returned from here will be stored as &quot;Postprocessor&quot; in the response map
+return;</postprocessingScript>
+    <deployScript>// This script executes once when the channel is deployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</deployScript>
+    <undeployScript>// This script executes once when the channel is undeployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</undeployScript>
+    <properties version="4.5.2">
+        <clearGlobalChannelMap>true</clearGlobalChannelMap>
+        <messageStorageMode>DEVELOPMENT</messageStorageMode>
+        <encryptData>false</encryptData>
+        <encryptAttachments>false</encryptAttachments>
+        <encryptCustomMetaData>false</encryptCustomMetaData>
+        <removeContentOnCompletion>false</removeContentOnCompletion>
+        <removeOnlyFilteredOnCompletion>false</removeOnlyFilteredOnCompletion>
+        <removeAttachmentsOnCompletion>false</removeAttachmentsOnCompletion>
+        <initialState>STARTED</initialState>
+        <storeAttachments>false</storeAttachments>
+        <metaDataColumns>
+            <metaDataColumn>
+                <name>SOURCE</name>
+                <type>STRING</type>
+                <mappingName>mirth_source</mappingName>
+            </metaDataColumn>
+            <metaDataColumn>
+                <name>TYPE</name>
+                <type>STRING</type>
+                <mappingName>mirth_type</mappingName>
+            </metaDataColumn>
+        </metaDataColumns>
+        <attachmentProperties version="4.5.2">
+            <type>None</type>
+            <properties/>
+        </attachmentProperties>
+        <resourceIds class="linked-hash-map">
+            <entry>
+                <string>Default Resource</string>
+                <string>[Default Resource]</string>
+            </entry>
+        </resourceIds>
+    </properties>
+    <exportData>
+        <metadata>
+            <enabled>true</enabled>
+            <lastModified>
+                <time>1748869090383</time>
+                <timezone>Europe/Istanbul</timezone>
+            </lastModified>
+            <pruningSettings>
+                <pruneMetaDataDays>30</pruneMetaDataDays>
+                <pruneContentDays>30</pruneContentDays>
+                <archiveEnabled>true</archiveEnabled>
+                <pruneErroredMessages>true</pruneErroredMessages>
+            </pruningSettings>
+            <userId>1</userId>
+        </metadata>
+        <dependentIds/>
+        <dependencyIds/>
+        <channelTags/>
+    </exportData>
+</channel>
